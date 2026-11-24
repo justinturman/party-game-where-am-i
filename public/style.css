@@ -1,0 +1,40 @@
+body { margin: 0; padding: 0.6rem; font-family: sans-serif; text-align: center;
+       background: #1e1e2f; color: #fff; }
+[hidden] { display: none !important; }
+h1, h2 { margin: 0.4rem 0; }
+button { font-size: 1.1rem; padding: 0.6rem 1.2rem; border: none; border-radius: 8px;
+         background: #8ab4ff; color: #111; font-weight: bold; cursor: pointer; }
+button:disabled { opacity: 0.45; cursor: default; }
+button.secondary { background: #c9c9dc; }
+button.big { font-size: 1.3rem; padding: 0.8rem 1.6rem; }
+.progress { opacity: 0.7; font-size: 0.9rem; margin: 0.3rem 0; }
+.waiting { font-size: 1.1rem; opacity: 0.85; }
+.credit { opacity: 0.5; font-size: 0.75rem; margin: 0.6rem 0 0; }
+
+.top { display: flex; justify-content: space-between; align-items: center;
+       max-width: 640px; margin: 0 auto 0.3rem; }
+.pvwrap { position: relative; width: 100%; max-width: 900px; margin: 0 auto; height: 40vh;
+          background: #000; border-radius: 10px; overflow: hidden; }
+.pvwrap.tv { height: 66vh; max-width: none; }
+pnx-photo-viewer { display: block; width: 100%; height: 100%; }
+.pvfail { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+
+.guessmap { width: 100%; max-width: 900px; height: 32vh; margin: 0.5rem auto; border-radius: 10px; }
+.revmap { width: 100%; max-width: 1100px; height: 52vh; margin: 0.5rem auto; border-radius: 10px; }
+.revmap.tv { height: 62vh; }
+.actions { margin: 0.4rem 0; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0.6rem 0; }
+.chip { background: #33334d; border-radius: 10px; padding: 0.3rem 0.8rem; font-size: 1.1rem; }
+.chip.done { background: #1f5a32; }
+
+.pin span { display: block; width: 20px; height: 20px; margin: 3px; background: var(--c);
+            border: 3px solid #fff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+.target { font-size: 28px; line-height: 28px; text-align: center; }
+.leaflet-tooltip.name { font-weight: bold; }
+
+ol.board { list-style: none; padding: 0; margin: 0.4rem auto; max-width: 520px; text-align: left; font-size: 1.15rem; }
+ol.board li { display: flex; justify-content: space-between; gap: 12px; padding: 0.3rem 0.6rem;
+              border-left: 6px solid var(--c); background: #2a2a40; margin: 4px 0; border-radius: 6px; }
+ol.board .dist { opacity: 0.7; font-size: 0.95rem; }

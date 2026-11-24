@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- The platform sandboxes games, which blocks localStorage. The Panoramax viewer
+         wants it, so give it an in-memory stand-in before it loads. -->
+    <script>
+      ['localStorage', 'sessionStorage'].forEach(function (name) {
+        try { window[name].getItem('x'); return; } catch (e) {}
+        var data = {};
+        var fake = {
+          getItem: function (k) { return k in data ? data[k] : null; },
+          setItem: function (k, v) { data[k] = String(v); },
+          removeItem: function (k) { delete data[k]; },
+          clear: function () { data = {}; },
+          key: function (i) { return Object.keys(data)[i] || null; },
+          get length() { return Object.keys(data).length; },
+        };
+        try { Object.defineProperty(window, name, { value: fake, configurable: true }); } catch (e) {}
+      });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Keep our own reference: the Panoramax script loaded next can clobber the global "L" -->
+    <script>window.LF = window.L;</script>
+    <script src="https://cdn.jsdelivr.net/npm/@panoramax/web-viewer@5.2.0/build/cjs/index_photoviewer.js"></script>
+    <script src="./view.js"></script>
+  </body>
+</html>

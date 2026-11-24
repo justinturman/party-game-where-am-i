@@ -1,0 +1,9 @@
+{
+  "id": "where-am-i",
+  "name": "Where Am I?",
+  "category": "Party Games",
+  "description": "Explore a mystery street-level 360° photo, then drop a pin on the world map where you think it was taken.",
+  "summary": "Every round the game picks a random 360° street photo from a city somewhere in the world. Everyone sees it on the TV and on their own phone, where you can look around and even move along the street. Then place a pin on the world map and lock in your guess. When all players have guessed, the TV reveals the true location with everyone's pins, and the closer you are the more points you score.",
+  "thumbnail": "thumbnail.jpg",
+  "color": "#00897b"
+}
