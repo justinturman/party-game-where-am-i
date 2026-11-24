@@ -180,8 +180,8 @@ const r5 = (n) => Math.round(n * 1e5) / 1e5;
 
 export const game = {
   name: 'where-am-i',
-  minPlayers: 1,
-  maxPlayers: 10,
+  minPlayers: 20,
+  maxPlayers: 20,
 
   setup: ({ ctx }) => {
     const G = {
