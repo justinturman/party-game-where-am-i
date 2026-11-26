@@ -1,4 +1,4 @@
-import { game, config, pool, AREAS, parseFeatures, distanceKm, score, MAX_POINTS } from './server.js';
+import { game, config, pool, AREAS, parseFeatures, is360, distanceKm, score, MAX_POINTS } from './server.js';
 
 config.autoRefill = false; // no network in tests
 
@@ -15,14 +15,17 @@ const photo = (i, area = 'Area ' + (i % 3)) => ({
 });
 const fill = (n = 10) => { pool.length = 0; for (let i = 0; i < n; i++) pool.push(photo(i)); };
 
-function newGame(n = 3) {
+// The game has 20 seats in real life; tests use a few. By default everyone joins.
+function newGame(n = 3, joined = n) {
   const ctx = { numPlayers: n, currentPlayer: '0' };
   const G = game.setup({ ctx });
-  return {
+  const g = {
     G,
     play: (name, id, ...args) => game.moves[name].move({ G, ctx, playerID: id }, ...args),
     view: (id) => game.playerView({ G, ctx, playerID: id }),
   };
+  for (let i = 0; i < joined; i++) g.play('join', String(i));
+  return g;
 }
 
 // ---- Scoring and distance ----
@@ -40,7 +43,7 @@ function newGame(n = 3) {
   const area = AREAS[0];
   const feat = (id, extra = {}) => ({
     id, collection: 'c0000000-aaaa', geometry: { type: 'Point', coordinates: [2.35, 48.86] },
-    properties: {}, links: [{ rel: 'self', href: `https://panoramax.example.org/api/collections/c0000000-aaaa/items/${id}` }], ...extra,
+    properties: { type: 'equirectangular' }, links: [{ rel: 'self', href: `https://panoramax.example.org/api/collections/c0000000-aaaa/items/${id}` }], ...extra,
   });
   const out = parseFeatures({ features: [
     feat('a1111111-1'),
@@ -55,6 +58,20 @@ function newGame(n = 3) {
   check('an untrusted endpoint falls back to the default', out[1].endpoint === config.api);
   check('bad input does not crash', parseFeatures(null, area).length === 0 && parseFeatures({}, area).length === 0);
   check('every area has a name and a valid box', AREAS.every((a) => a.name && a.bbox[0] < a.bbox[2] && a.bbox[1] < a.bbox[3]));
+  check('area names are unique', new Set(AREAS.map((a) => a.name)).size === AREAS.length);
+  check('areas are spread over the world', new Set(AREAS.map((a) => a.region)).size >= 6 && AREAS.length >= 30);
+  check('coordinates are on Earth', AREAS.every((a) => Math.abs(a.bbox[0]) <= 180 && Math.abs(a.bbox[2]) <= 180 && Math.abs(a.bbox[1]) <= 90 && Math.abs(a.bbox[3]) <= 90));
+
+  // What counts as a true 360° photo
+  check('an equirectangular photo counts', is360({ type: 'equirectangular' }));
+  check('a 360° field of view counts', is360({ 'pers:interior_orientation': { field_of_view: 360 } }));
+  check('a flat photo is rejected', !is360({ type: 'flat' }) && !is360({ type: 'flat', 'pers:interior_orientation': { field_of_view: 360 } }));
+  check('a photo that does not say it is 360° is rejected', !is360({}) && !is360(null) && !is360({ type: 'other' }));
+  check('a wide-angle photo is rejected', !is360({ type: 'equirectangular', 'pers:interior_orientation': { field_of_view: 180 } }));
+  check('a photo that is not 2:1 is rejected', !is360({ type: 'equirectangular', 'pers:interior_orientation': { sensor_array_dimensions: [4000, 3000] } }));
+  check('a 2:1 panorama is accepted', is360({ type: 'equirectangular', 'pers:interior_orientation': { sensor_array_dimensions: [8192, 4096] } }));
+  check('features without 360° evidence are dropped',
+    parseFeatures({ features: [feat('f6666666-6', { properties: {} }), feat('a7777777-7', { properties: { type: 'equirectangular', 'pers:interior_orientation': { sensor_array_dimensions: [4000, 3000] } } })] }, area).length === 0);
 }
 
 // ---- Setup ----
@@ -90,6 +107,53 @@ function newGame(n = 3) {
   check('the round goes on while someone is still guessing', g.G.phase === 'guessing');
   g.play('guess', '2', 0, 0);
   check('it reveals when everyone has guessed', g.G.phase === 'reveal');
+}
+
+// ---- Open joining: only the players who are here count ----
+{
+  fill(10);
+  const solo = newGame(20, 1); // 20 seats, one player
+  check('a seat that nobody has joined is not a player', solo.view('0').players.length === 1);
+  check('joining twice is ignored', solo.play('join', '0') === REJECT);
+  check('a spectator cannot join', solo.play('join', null) === REJECT);
+  solo.play('guess', '0', 10, 10);
+  check('a lone player does not wait for the empty seats', solo.G.phase === 'reveal');
+
+  const g = newGame(20, 2);
+  g.play('guess', '0', 1, 1);
+  check('the round waits for the second player who is here', g.G.phase === 'guessing');
+  g.play('join', '5'); // someone joins mid-round
+  g.play('guess', '1', 2, 2);
+  check('a player who joins mid-round is waited for', g.G.phase === 'guessing' && g.view('0').players.length === 3);
+  g.play('guess', '5', 3, 3);
+  check('it reveals once all three have guessed', g.G.phase === 'reveal');
+  check('only joined players appear in the results', Object.keys(g.G.results).length === 3);
+
+  const h = newGame(20, 3);
+  h.play('guess', '0', 1, 1);
+  h.play('guess', '1', 2, 2);
+  check('still waiting for the third player', h.G.phase === 'guessing');
+  h.play('leave', '2');
+  check('when the last player we were waiting for leaves, it reveals', h.G.phase === 'reveal');
+  check('a leaver is no longer a player', h.view('0').players.length === 2);
+  check('leaving twice is rejected', h.play('leave', '2') === REJECT);
+
+  const k = newGame(20, 2);
+  k.play('guess', '0', 1, 1);
+  k.play('leave', '0');
+  check('a guess is removed when its player leaves', k.G.guesses['0'] === undefined && k.G.firstLockAt === null);
+  k.play('leave', '1');
+  check('everyone can leave', k.view(null).players.length === 0);
+  k.play('guess', '1', 4, 4);
+  check('a player who guesses is counted as joined', k.view(null).players.join() === '1' && k.G.phase === 'reveal');
+  k.play('leave', '1');
+  k.play('join', '3');
+  check('the first player into an empty room starts fresh', k.G.phase === 'guessing' && k.G.round === 2 && !k.G.guesses['1']);
+  const old = newGame(20, 1);
+  old.play('guess', '0', 1, 1);
+  old.play('leave', '0');
+  old.play('join', '0'); // the same seat is handed to a new player
+  check('a re-used seat has no leftover guess', !old.G.locked['0'] && old.view('0').myGuess === null);
 }
 
 // ---- Reveal ----

@@ -22,6 +22,9 @@
   let map = null; // the Leaflet map of the current layout, if any
   let pin = null; // this phone's own pin (not sent until confirmed)
   let sentAt = 0;
+  let joinSentAt = 0; // when this phone last told the game "I'm here"
+  let amPlayer = false; // has this screen ever been a player's own screen?
+  let leaving = false; // the player tapped Leave
   const deadlines = {}; // timer id -> the local time when it ends
 
   // ---------------- Clock ----------------
@@ -215,6 +218,12 @@
     const S = state.G;
     track(S);
     const mine = isMine();
+    if (mine) amPlayer = true;
+    // Tell the game this player is here, so rounds wait for their guess (and only theirs)
+    if (mine && !leaving && !S.players.includes(String(playerID)) && Date.now() - joinSentAt > 2000) {
+      joinSentAt = Date.now();
+      send('join');
+    }
     if (S.phase === 'waiting') waitingScreen(S, mine);
     else if (S.phase === 'reveal') revealScreen(S, names, mine);
     else if (mine) phoneGuessScreen(S, names, playerID);
@@ -223,7 +232,19 @@
   }
 
   window.addEventListener('message', (e) => {
-    if (e.source === parent && e.data && e.data.type === 'state') render(e.data);
+    if (e.source !== parent || !e.data) return;
+    if (e.data.type === 'state') render(e.data);
+    else if (e.data.type === 'leaving') {
+      leaving = true;
+      if (amPlayer) {
+        // Take this player out of the round first, then let the platform free the seat
+        parent.postMessage({ type: 'leave-veto' }, '*');
+        send('leave');
+        setTimeout(() => parent.postMessage({ type: 'leave' }, '*'), 300);
+      } else {
+        parent.postMessage({ type: 'leave' }, '*');
+      }
+    }
   });
   parent.postMessage({ type: 'ready' }, '*');
 })();
